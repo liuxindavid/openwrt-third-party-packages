@@ -3,7 +3,7 @@ name: Sync OpenWrt third-party packages
 on:
   workflow_dispatch:
   schedule:
-    - cron: '57 18 * * *'
+    - cron: '00 05 * * *'
 
 permissions:
   contents: write
@@ -57,6 +57,26 @@ jobs:
           cp -a "$TMPDIR/coolsnowwolf-luci/applications/luci-app-autoreboot" \
             "$WORKDIR/luci-app-autoreboot"
 
+          # 覆盖 luci-app-autoreboot 的 Makefile
+          cat > "$WORKDIR/luci-app-autoreboot/Makefile" <<'EOF'
+          # SPDX-License-Identifier: Apache-2.0
+          #
+          # Copyright (c) 2025 ImmortalWrt.org
+
+          include $(TOPDIR)/rules.mk
+
+          LUCI_TITLE:=LuCI support for Scheduled Reboot
+          LUCI_DEPENDS:=
+
+          define Package/luci-app-autoreboot/conffiles
+          /etc/config/autoreboot
+          endef
+
+          include $(TOPDIR)/feeds/luci/luci.mk
+
+          # call BuildPackage - OpenWrt buildroot signature
+          EOF
+
           # 3. luci-app-arpbind
           git clone --depth=1 \
             https://github.com/monokoo/luci-app-arpbind.git \
@@ -86,6 +106,8 @@ jobs:
           cp -a "$TMPDIR/openwrt-vlmcsd" "$WORKDIR/vlmcsd"
 
           # 7 & 8. Lienol/openwrt-package 中的插件
+          # luci-app-ramfree
+          # luci-app-softethervpn
           git clone --depth=1 --filter=blob:none --sparse \
             https://github.com/Lienol/openwrt-package.git \
             "$TMPDIR/lienol-openwrt-package"
@@ -104,7 +126,7 @@ jobs:
           # 删除各插件内部自带的 .git 目录，但保留当前仓库自己的 .git
           find . -mindepth 2 -name ".git" -type d -prune -exec rm -rf {} +
 
-          # 生成 README，避免使用 heredoc，防止吞掉后续 git 命令
+          # 生成 README
           printf '%s\n' \
             '# OpenWrt Third-Party Packages Mirror' \
             '' \
@@ -137,6 +159,10 @@ jobs:
             '```' \
             '' \
             'Then select packages in make menuconfig.' \
+            '' \
+            '## Special note' \
+            '' \
+            'The Makefile of luci-app-autoreboot is automatically overridden for OpenWrt/ImmortalWrt compatibility.' \
             '' \
             '## Sync source' \
             '' \
