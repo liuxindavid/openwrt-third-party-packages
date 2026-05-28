@@ -30,6 +30,10 @@ Then run:
 
 Then select packages in make menuconfig.
 
+## Special note
+
+The Makefile of luci-app-autoreboot is automatically overridden for OpenWrt/ImmortalWrt compatibility.
+
 ## Sync source
 
 This repository is automatically synchronized by GitHub Actions.
