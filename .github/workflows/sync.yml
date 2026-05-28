@@ -3,7 +3,7 @@ name: Sync OpenWrt third-party packages
 on:
   workflow_dispatch:
   schedule:
-    - cron: '57 18 * * *'
+    - cron: '00 05 * * *'
 
 permissions:
   contents: write
@@ -31,7 +31,9 @@ jobs:
           rm -rf "$TMPDIR"
           mkdir -p "$TMPDIR"
 
-          # 清理旧内容，但保留 .git 和 .github/workflows
+          ############################################
+          # 清理旧内容，但保留当前仓库的 .git 和 .github
+          ############################################
           find "$WORKDIR" -mindepth 1 \
             ! -path "$WORKDIR/.git" \
             ! -path "$WORKDIR/.git/*" \
@@ -50,7 +52,7 @@ jobs:
 
           ############################################
           # 2. luci-app-autoreboot
-          # from coolsnowwolf/luci applications/luci-app-autoreboot
+          # from coolsnowwolf/luci/applications/luci-app-autoreboot
           ############################################
           git clone --depth=1 --filter=blob:none --sparse \
             https://github.com/coolsnowwolf/luci.git \
@@ -99,8 +101,9 @@ jobs:
           cp -a "$TMPDIR/openwrt-vlmcsd" "$WORKDIR/vlmcsd"
 
           ############################################
-          # 7. luci-app-ramfree
-          # from Lienol/openwrt-package
+          # 7 & 8. Lienol/openwrt-package 中的插件
+          # luci-app-ramfree
+          # luci-app-softethervpn
           ############################################
           git clone --depth=1 --filter=blob:none --sparse \
             https://github.com/Lienol/openwrt-package.git \
@@ -112,18 +115,19 @@ jobs:
           cp -a "$TMPDIR/lienol-openwrt-package/luci-app-ramfree" \
             "$WORKDIR/luci-app-ramfree"
 
-          ############################################
-          # 8. luci-app-softethervpn
-          # from Lienol/openwrt-package
-          ############################################
           cp -a "$TMPDIR/lienol-openwrt-package/luci-app-softethervpn" \
             "$WORKDIR/luci-app-softethervpn"
 
           ############################################
-          # 清理各插件内的 .git 目录
+          # 回到当前仓库目录
           ############################################
           cd "$WORKDIR"
-          find . -name ".git" -type d -prune -exec rm -rf {} +
+
+          ############################################
+          # 删除各插件内部自带的 .git 目录
+          # 注意：必须使用 -mindepth 2，避免删除当前仓库自己的 .git
+          ############################################
+          find . -mindepth 2 -name ".git" -type d -prune -exec rm -rf {} +
 
           ############################################
           # 生成 README
@@ -158,11 +162,18 @@ jobs:
           ./scripts/feeds update mypackages
           ./scripts/feeds install -a -p mypackages
           ```
+
+          Then select packages in:
+
+          ```text
+          make menuconfig
+          ```
+
+          ## Sync source
+
+          This repository is automatically synchronized by GitHub Actions.
           EOF
 
           ############################################
           # 提交并推送
-          ############################################
-          git add -A
-          git commit -m "Sync OpenWrt third-party packages" || echo "No changes"
-          git push origin HEAD:main
+          ###############
