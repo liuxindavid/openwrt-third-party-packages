@@ -1,0 +1,35 @@
+# OpenWrt Third-Party Packages Mirror
+
+This repository syncs selected OpenWrt third-party packages for personal OpenWrt builds.
+
+## Included packages
+
+- luci-theme-argon
+- luci-app-autoreboot
+- luci-app-arpbind
+- luci-app-openvpn-server
+- luci-app-vlmcsd
+- vlmcsd
+- luci-app-ramfree
+- luci-app-softethervpn
+
+## Usage
+
+Add this feed to feeds.conf.default:
+
+```bash
+src-git mypackages https://github.com/liuxindavid/openwrt-third-party-packages.git;main
+```
+
+Then run:
+
+```bash
+./scripts/feeds update mypackages
+./scripts/feeds install -a -p mypackages
+```
+
+Then select packages in make menuconfig.
+
+## Sync source
+
+This repository is automatically synchronized by GitHub Actions.
