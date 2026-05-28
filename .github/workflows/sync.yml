@@ -1,0 +1,168 @@
+name: Sync OpenWrt third-party packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '57 18 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync third-party packages
+        run: |
+          set -eux
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          WORKDIR="$GITHUB_WORKSPACE"
+          TMPDIR="/tmp/openwrt-third-party-sync"
+
+          rm -rf "$TMPDIR"
+          mkdir -p "$TMPDIR"
+
+          # 清理旧内容，但保留 .git 和 .github/workflows
+          find "$WORKDIR" -mindepth 1 \
+            ! -path "$WORKDIR/.git" \
+            ! -path "$WORKDIR/.git/*" \
+            ! -path "$WORKDIR/.github" \
+            ! -path "$WORKDIR/.github/*" \
+            -exec rm -rf {} +
+
+          ############################################
+          # 1. luci-theme-argon
+          ############################################
+          git clone --depth=1 \
+            https://github.com/jerrykuku/luci-theme-argon.git \
+            "$TMPDIR/luci-theme-argon"
+
+          cp -a "$TMPDIR/luci-theme-argon" "$WORKDIR/luci-theme-argon"
+
+          ############################################
+          # 2. luci-app-autoreboot
+          # from coolsnowwolf/luci applications/luci-app-autoreboot
+          ############################################
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/coolsnowwolf/luci.git \
+            "$TMPDIR/coolsnowwolf-luci"
+
+          cd "$TMPDIR/coolsnowwolf-luci"
+          git sparse-checkout set applications/luci-app-autoreboot
+
+          cp -a "$TMPDIR/coolsnowwolf-luci/applications/luci-app-autoreboot" \
+            "$WORKDIR/luci-app-autoreboot"
+
+          ############################################
+          # 3. luci-app-arpbind
+          ############################################
+          git clone --depth=1 \
+            https://github.com/monokoo/luci-app-arpbind.git \
+            "$TMPDIR/luci-app-arpbind"
+
+          cp -a "$TMPDIR/luci-app-arpbind" "$WORKDIR/luci-app-arpbind"
+
+          ############################################
+          # 4. luci-app-openvpn-server
+          ############################################
+          git clone --depth=1 \
+            https://github.com/DavBfr/luci-app-openvpn-server.git \
+            "$TMPDIR/luci-app-openvpn-server"
+
+          cp -a "$TMPDIR/luci-app-openvpn-server" "$WORKDIR/luci-app-openvpn-server"
+
+          ############################################
+          # 5. luci-app-vlmcsd
+          ############################################
+          git clone --depth=1 \
+            https://github.com/cokebar/luci-app-vlmcsd.git \
+            "$TMPDIR/luci-app-vlmcsd"
+
+          cp -a "$TMPDIR/luci-app-vlmcsd" "$WORKDIR/luci-app-vlmcsd"
+
+          ############################################
+          # 6. vlmcsd
+          ############################################
+          git clone --depth=1 \
+            https://github.com/cokebar/openwrt-vlmcsd.git \
+            "$TMPDIR/openwrt-vlmcsd"
+
+          cp -a "$TMPDIR/openwrt-vlmcsd" "$WORKDIR/vlmcsd"
+
+          ############################################
+          # 7. luci-app-ramfree
+          # from Lienol/openwrt-package
+          ############################################
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/Lienol/openwrt-package.git \
+            "$TMPDIR/lienol-openwrt-package"
+
+          cd "$TMPDIR/lienol-openwrt-package"
+          git sparse-checkout set luci-app-ramfree luci-app-softethervpn
+
+          cp -a "$TMPDIR/lienol-openwrt-package/luci-app-ramfree" \
+            "$WORKDIR/luci-app-ramfree"
+
+          ############################################
+          # 8. luci-app-softethervpn
+          # from Lienol/openwrt-package
+          ############################################
+          cp -a "$TMPDIR/lienol-openwrt-package/luci-app-softethervpn" \
+            "$WORKDIR/luci-app-softethervpn"
+
+          ############################################
+          # 清理各插件内的 .git 目录
+          ############################################
+          cd "$WORKDIR"
+          find . -name ".git" -type d -prune -exec rm -rf {} +
+
+          ############################################
+          # 生成 README
+          ############################################
+          cat > README.md <<'EOF'
+          # OpenWrt Third-Party Packages Mirror
+
+          This repository syncs selected OpenWrt third-party packages for personal OpenWrt builds.
+
+          ## Included packages
+
+          - luci-theme-argon
+          - luci-app-autoreboot
+          - luci-app-arpbind
+          - luci-app-openvpn-server
+          - luci-app-vlmcsd
+          - vlmcsd
+          - luci-app-ramfree
+          - luci-app-softethervpn
+
+          ## Usage
+
+          Add this feed to `feeds.conf.default`:
+
+          ```bash
+          src-git mypackages https://github.com/liuxindavid/openwrt-third-party-packages.git;main
+          ```
+
+          Then run:
+
+          ```bash
+          ./scripts/feeds update mypackages
+          ./scripts/feeds install -a -p mypackages
+          ```
+          EOF
+
+          ############################################
+          # 提交并推送
+          ############################################
+          git add -A
+          git commit -m "Sync OpenWrt third-party packages" || echo "No changes"
+          git push origin HEAD:main
