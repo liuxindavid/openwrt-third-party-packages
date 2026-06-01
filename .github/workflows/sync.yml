@@ -31,22 +31,28 @@ jobs:
           rm -rf "$TMPDIR"
           mkdir -p "$TMPDIR"
 
+          ############################################
           # 清理旧内容，但保留当前仓库的 .git 和 .github
-          find "$WORKDIR" -mindepth 1 \
-            ! -path "$WORKDIR/.git" \
-            ! -path "$WORKDIR/.git/*" \
-            ! -path "$WORKDIR/.github" \
-            ! -path "$WORKDIR/.github/*" \
+          # 注意：必须加 -maxdepth 1，避免 find 删除父目录后继续遍历子目录报错
+          ############################################
+          find "$WORKDIR" -mindepth 1 -maxdepth 1 \
+            ! -name ".git" \
+            ! -name ".github" \
             -exec rm -rf {} +
 
+          ############################################
           # 1. luci-theme-argon
+          ############################################
           git clone --depth=1 \
             https://github.com/jerrykuku/luci-theme-argon.git \
             "$TMPDIR/luci-theme-argon"
 
           cp -a "$TMPDIR/luci-theme-argon" "$WORKDIR/luci-theme-argon"
 
+          ############################################
           # 2. luci-app-autoreboot
+          # from coolsnowwolf/luci/applications/luci-app-autoreboot
+          ############################################
           git clone --depth=1 --filter=blob:none --sparse \
             https://github.com/coolsnowwolf/luci.git \
             "$TMPDIR/coolsnowwolf-luci"
@@ -77,37 +83,47 @@ jobs:
           # call BuildPackage - OpenWrt buildroot signature
           EOF
 
+          ############################################
           # 3. luci-app-arpbind
+          ############################################
           git clone --depth=1 \
             https://github.com/monokoo/luci-app-arpbind.git \
             "$TMPDIR/luci-app-arpbind"
 
           cp -a "$TMPDIR/luci-app-arpbind" "$WORKDIR/luci-app-arpbind"
 
+          ############################################
           # 4. luci-app-openvpn-server
+          ############################################
           git clone --depth=1 \
             https://github.com/DavBfr/luci-app-openvpn-server.git \
             "$TMPDIR/luci-app-openvpn-server"
 
           cp -a "$TMPDIR/luci-app-openvpn-server" "$WORKDIR/luci-app-openvpn-server"
 
+          ############################################
           # 5. luci-app-vlmcsd
+          ############################################
           git clone --depth=1 \
             https://github.com/cokebar/luci-app-vlmcsd.git \
             "$TMPDIR/luci-app-vlmcsd"
 
           cp -a "$TMPDIR/luci-app-vlmcsd" "$WORKDIR/luci-app-vlmcsd"
 
+          ############################################
           # 6. vlmcsd
+          ############################################
           git clone --depth=1 \
             https://github.com/cokebar/openwrt-vlmcsd.git \
             "$TMPDIR/openwrt-vlmcsd"
 
           cp -a "$TMPDIR/openwrt-vlmcsd" "$WORKDIR/vlmcsd"
 
+          ############################################
           # 7 & 8. Lienol/openwrt-package 中的插件
           # luci-app-ramfree
           # luci-app-softethervpn
+          ############################################
           git clone --depth=1 --filter=blob:none --sparse \
             https://github.com/Lienol/openwrt-package.git \
             "$TMPDIR/lienol-openwrt-package"
@@ -121,9 +137,10 @@ jobs:
           cp -a "$TMPDIR/lienol-openwrt-package/luci-app-softethervpn" \
             "$WORKDIR/luci-app-softethervpn"
 
+          ############################################
           # 9. fw876/helloworld
-          # 注意：helloworld 本身就是一个 OpenWrt feed 仓库
-          # 这里把它里面的包目录同步到当前聚合仓库根目录
+          # 直接把 helloworld 里的包目录同步到当前 feed 根目录
+          ############################################
           git clone --depth=1 \
             https://github.com/fw876/helloworld.git \
             "$TMPDIR/helloworld"
@@ -139,10 +156,14 @@ jobs:
 
           cd "$WORKDIR"
 
+          ############################################
           # 删除各插件内部自带的 .git 目录，但保留当前仓库自己的 .git
+          ############################################
           find . -mindepth 2 -name ".git" -type d -prune -exec rm -rf {} +
 
+          ############################################
           # 生成 README
+          ############################################
           printf '%s\n' \
             '# OpenWrt Third-Party Packages Mirror' \
             '' \
