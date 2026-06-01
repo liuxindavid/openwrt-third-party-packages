@@ -121,6 +121,22 @@ jobs:
           cp -a "$TMPDIR/lienol-openwrt-package/luci-app-softethervpn" \
             "$WORKDIR/luci-app-softethervpn"
 
+          # 9. fw876/helloworld
+          # 注意：helloworld 本身就是一个 OpenWrt feed 仓库
+          # 这里把它里面的包目录同步到当前聚合仓库根目录
+          git clone --depth=1 \
+            https://github.com/fw876/helloworld.git \
+            "$TMPDIR/helloworld"
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='README*' \
+            --exclude='LICENSE*' \
+            "$TMPDIR/helloworld/" \
+            "$WORKDIR/"
+
           cd "$WORKDIR"
 
           # 删除各插件内部自带的 .git 目录，但保留当前仓库自己的 .git
@@ -142,6 +158,7 @@ jobs:
             '- vlmcsd' \
             '- luci-app-ramfree' \
             '- luci-app-softethervpn' \
+            '- fw876/helloworld packages' \
             '' \
             '## Usage' \
             '' \
@@ -163,6 +180,8 @@ jobs:
             '## Special note' \
             '' \
             'The Makefile of luci-app-autoreboot is automatically overridden for OpenWrt/ImmortalWrt compatibility.' \
+            '' \
+            'fw876/helloworld is synced into the root of this feed repository, not into a separate helloworld directory.' \
             '' \
             '## Sync source' \
             '' \
