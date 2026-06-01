@@ -12,6 +12,7 @@ This repository syncs selected OpenWrt third-party packages for personal OpenWrt
 - vlmcsd
 - luci-app-ramfree
 - luci-app-softethervpn
+- fw876/helloworld packages
 
 ## Usage
 
@@ -33,6 +34,8 @@ Then select packages in make menuconfig.
 ## Special note
 
 The Makefile of luci-app-autoreboot is automatically overridden for OpenWrt/ImmortalWrt compatibility.
+
+fw876/helloworld is synced into the root of this feed repository, not into a separate helloworld directory.
 
 ## Sync source
 
