@@ -138,7 +138,30 @@ jobs:
             "$WORKDIR/luci-app-softethervpn"
 
           ############################################
-          # 9. fw876/helloworld
+          # 9. luci-app-openclash
+          #
+          # vernesong/OpenClash
+          #
+          # only sync luci-app-openclash
+          ############################################
+          echo "Sync luci-app-openclash"
+          
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/vernesong/OpenClash.git \
+            "$TMPDIR/OpenClash"
+          
+          cd "$TMPDIR/OpenClash"
+          
+          git sparse-checkout set luci-app-openclash
+          
+          cp -a \
+            "$TMPDIR/OpenClash/luci-app-openclash" \
+            "$WORKDIR/luci-app-openclash"
+
+          cd "$WORKDIR"
+
+          ############################################
+          # 10. fw876/helloworld
           # 直接把 helloworld 里的包目录同步到当前 feed 根目录
           ############################################
           git clone --depth=1 \
