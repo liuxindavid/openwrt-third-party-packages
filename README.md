@@ -1,6 +1,6 @@
 # OpenWrt Third-Party Packages Mirror
 
-This repository syncs selected OpenWrt third-party packages for personal OpenWrt builds.
+This repository syncs selected OpenWrt third-party packages for personal builds.
 
 ## Included packages
 
@@ -12,13 +12,15 @@ This repository syncs selected OpenWrt third-party packages for personal OpenWrt
 - vlmcsd
 - luci-app-ramfree
 - luci-app-softethervpn
+- luci-app-openclash
 - fw876/helloworld packages
+- softethervpn (4.44-9807 RTM recipe; experimental, build not yet validated)
 
 ## Usage
 
 Add this feed to feeds.conf.default:
 
-```bash
+```text
 src-git mypackages https://github.com/liuxindavid/openwrt-third-party-packages.git;main
 ```
 
@@ -29,14 +31,13 @@ Then run:
 ./scripts/feeds install -a -p mypackages
 ```
 
-Then select packages in make menuconfig.
+## Notes
 
-## Special note
+- The luci-app-autoreboot Makefile is overridden for compatibility.
+- fw876/helloworld packages are synced into the feed root.
+- SoftEtherVPN 4.44 uses the OpenWrt 24.10 recipe as a base and a verified source archive.
+- It is NOT automatically selected over the official softethervpn package.
+- Verify host and target builds, LuCI start/stop and L2TP/IPsec before deployment.
+- The SoftEtherVPN package may need version-specific patches.
 
-The Makefile of luci-app-autoreboot is automatically overridden for OpenWrt/ImmortalWrt compatibility.
-
-fw876/helloworld is synced into the root of this feed repository, not into a separate helloworld directory.
-
-## Sync source
-
-This repository is automatically synchronized by GitHub Actions.
+Synced automatically by GitHub Actions.
