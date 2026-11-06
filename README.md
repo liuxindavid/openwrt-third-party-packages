@@ -14,7 +14,7 @@ This repository syncs selected OpenWrt third-party packages for personal builds.
 - luci-app-softethervpn
 - luci-app-openclash
 - fw876/helloworld packages
-- softethervpn (4.44-9807 RTM recipe; experimental, build not yet validated)
+- softethervpn (4.44-9807 RTM; OpenWrt 24.10 build tested)
 
 ## Usage
 
@@ -35,7 +35,7 @@ Then run:
 
 - The luci-app-autoreboot Makefile is overridden for compatibility.
 - fw876/helloworld packages are synced into the feed root.
-- SoftEtherVPN 4.44 uses the OpenWrt 24.10 recipe as a base and a verified source archive.
+- SoftEtherVPN 4.44 uses the OpenWrt 24.10 recipe with an Ubuntu 26.04.1 x86_64 Host build workaround.
 - It is NOT automatically selected over the official softethervpn package.
 - Verify host and target builds, LuCI start/stop and L2TP/IPsec before deployment.
 - The SoftEtherVPN package may need version-specific patches.

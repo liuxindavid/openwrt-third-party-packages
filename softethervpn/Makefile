@@ -46,10 +46,8 @@ endef
 HOST_CFLAGS += $(if $(CONFIG_HOST_OS_MACOS),-Wno-implicit-function-declaration,)
 
 define Host/Compile
-	# Build hamcorebuilder using host compiler and let it generate
-	# the hamcore.se2 archive file
-	# CFLAGS, CPPFLAGS & LDFLAGS need to be passed with CC because they are being ingored
-	CC="$(HOSTCC) $(HOST_CFLAGS) $(HOST_CPPFLAGS) $(HOST_LDFLAGS)" $(MAKE) $(HOST_MAKE_FLAGS) \
+	CC="/usr/bin/gcc -O2 -I$(STAGING_DIR_HOSTPKG)/include -L$(STAGING_DIR_HOSTPKG)/lib -L/usr/lib/x86_64-linux-gnu" \
+	$(MAKE) $(HOST_MAKE_FLAGS) \
 		src/bin/BuiltHamcoreFiles/unix/hamcore.se2
 endef
 
