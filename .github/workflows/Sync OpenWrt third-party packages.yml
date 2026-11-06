@@ -1,4 +1,260 @@
-data,
+name: Sync OpenWrt third-party packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '00 05 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-openwrt-third-party-packages
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Sync third-party packages
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          WORKDIR="$GITHUB_WORKSPACE"
+          TMPDIR="/tmp/openwrt-third-party-sync"
+          rm -rf "$TMPDIR"
+          mkdir -p "$TMPDIR"
+
+          # Remove old mirrored content; retain this repository metadata/workflows.
+          find "$WORKDIR" -mindepth 1 -maxdepth 1 \
+            ! -name ".git" ! -name ".github" -exec rm -rf {} +
+
+          ############################################
+          # 1. luci-theme-argon
+          ############################################
+          git clone --depth=1 \
+            https://github.com/jerrykuku/luci-theme-argon.git \
+            "$TMPDIR/luci-theme-argon"
+          cp -a "$TMPDIR/luci-theme-argon" "$WORKDIR/luci-theme-argon"
+
+          ############################################
+          # 2. luci-app-autoreboot
+          ############################################
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/coolsnowwolf/luci.git \
+            "$TMPDIR/coolsnowwolf-luci"
+          cd "$TMPDIR/coolsnowwolf-luci"
+          git sparse-checkout set applications/luci-app-autoreboot
+          cp -a "$TMPDIR/coolsnowwolf-luci/applications/luci-app-autoreboot" \
+            "$WORKDIR/luci-app-autoreboot"
+
+          cat > "$WORKDIR/luci-app-autoreboot/Makefile" <<'EOF'
+          # SPDX-License-Identifier: Apache-2.0
+          #
+          # Copyright (c) 2025 ImmortalWrt.org
+
+          include $(TOPDIR)/rules.mk
+
+          LUCI_TITLE:=LuCI support for Scheduled Reboot
+          LUCI_DEPENDS:=
+
+          define Package/luci-app-autoreboot/conffiles
+          /etc/config/autoreboot
+          endef
+
+          include $(TOPDIR)/feeds/luci/luci.mk
+
+          # call BuildPackage - OpenWrt buildroot signature
+          EOF
+
+          ############################################
+          # 3. luci-app-arpbind
+          ############################################
+          git clone --depth=1 \
+            https://github.com/monokoo/luci-app-arpbind.git \
+            "$TMPDIR/luci-app-arpbind"
+          cp -a "$TMPDIR/luci-app-arpbind" "$WORKDIR/luci-app-arpbind"
+
+          ############################################
+          # 4. luci-app-openvpn-server
+          ############################################
+          git clone --depth=1 \
+            https://github.com/DavBfr/luci-app-openvpn-server.git \
+            "$TMPDIR/luci-app-openvpn-server"
+          cp -a "$TMPDIR/luci-app-openvpn-server" "$WORKDIR/luci-app-openvpn-server"
+
+          ############################################
+          # 5. luci-app-vlmcsd
+          ############################################
+          git clone --depth=1 \
+            https://github.com/cokebar/luci-app-vlmcsd.git \
+            "$TMPDIR/luci-app-vlmcsd"
+          cp -a "$TMPDIR/luci-app-vlmcsd" "$WORKDIR/luci-app-vlmcsd"
+
+          ############################################
+          # 6. vlmcsd
+          ############################################
+          git clone --depth=1 \
+            https://github.com/cokebar/openwrt-vlmcsd.git \
+            "$TMPDIR/openwrt-vlmcsd"
+          cp -a "$TMPDIR/openwrt-vlmcsd" "$WORKDIR/vlmcsd"
+
+          ############################################
+          # 7 & 8. Lienol: LuCI plugins
+          ############################################
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/Lienol/openwrt-package.git \
+            "$TMPDIR/lienol-openwrt-package"
+          cd "$TMPDIR/lienol-openwrt-package"
+          git sparse-checkout set luci-app-ramfree luci-app-softethervpn
+          cp -a "$TMPDIR/lienol-openwrt-package/luci-app-ramfree" \
+            "$WORKDIR/luci-app-ramfree"
+          cp -a "$TMPDIR/lienol-openwrt-package/luci-app-softethervpn" \
+            "$WORKDIR/luci-app-softethervpn"
+
+          ############################################
+          # 9. luci-app-openclash
+          ############################################
+          git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/vernesong/OpenClash.git \
+            "$TMPDIR/OpenClash"
+          cd "$TMPDIR/OpenClash"
+          git sparse-checkout set luci-app-openclash
+          cp -a "$TMPDIR/OpenClash/luci-app-openclash" \
+            "$WORKDIR/luci-app-openclash"
+
+          ############################################
+          # 10. fw876/helloworld
+          ############################################
+          git clone --depth=1 \
+            https://github.com/fw876/helloworld.git \
+            "$TMPDIR/helloworld"
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='README*' \
+            --exclude='LICENSE*' \
+            "$TMPDIR/helloworld/" "$WORKDIR/"
+
+          
+          ############################################
+          # 11. SoftEtherVPN 4.44 package recipe
+          # Base recipe: OpenWrt packages / openwrt-24.10
+          # Source tarball: SoftEther Stable 4.44-9807 RTM
+          # Host tested: Ubuntu 26.04.1 x86_64
+          ############################################
+          echo "Sync SoftEtherVPN 4.44 package recipe"
+
+          git clone --depth=1 --filter=blob:none --sparse \
+            --branch openwrt-24.10 \
+            https://github.com/openwrt/packages.git \
+            "$TMPDIR/openwrt-packages"
+
+          cd "$TMPDIR/openwrt-packages"
+          git sparse-checkout set net/softethervpn
+
+          test -f net/softethervpn/Makefile
+          cp -a net/softethervpn "$WORKDIR/softethervpn"
+
+          ############################################
+          # 11.1 Set SoftEtherVPN 4.44 version
+          ############################################
+          python3 - "$WORKDIR/softethervpn/Makefile" <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          data = path.read_text()
+
+          replacements = {
+              'PKG_VERSION': '4.44-9807',
+              'PKG_VERREL': 'rtm',
+              'PKG_RELEASE': '1',
+              'PKG_SOURCE_URL': 'https://www.softether-download.com/files/softether/v4.44-9807-rtm-2025.04.16-tree/Source_Code/',
+              'PKG_HASH': 'f4fdc5f791ae318c4a70c1bc95b15ee24c264d8f3dc32e626ee9d5382da849e7',
+          }
+
+          for name, value in replacements.items():
+              pattern = rf'(?m)^{re.escape(name)}:=[^\n]*$'
+              data, count = re.subn(
+                  pattern,
+                  lambda match, n=name, v=value: f'{n}:={v}',
+                  data
+              )
+              if count != 1:
+                  raise SystemExit(
+                      f'Unexpected upstream Makefile: {name} occurs {count} times'
+                  )
+
+          path.write_text(data)
+          print("SoftEtherVPN version configured: 4.44-9807")
+          PY
+
+          ############################################
+          # 11.2 Verify official source SHA256
+          ############################################
+          echo "Verify SoftEtherVPN 4.44 source archive"
+
+          curl -fL --retry 3 --retry-delay 2 \
+            -o "$TMPDIR/softether-src-v4.44-9807-rtm.tar.gz" \
+            'https://www.softether-download.com/files/softether/v4.44-9807-rtm-2025.04.16-tree/Source_Code/softether-src-v4.44-9807-rtm.tar.gz'
+
+          echo "f4fdc5f791ae318c4a70c1bc95b15ee24c264d8f3dc32e626ee9d5382da849e7  $TMPDIR/softether-src-v4.44-9807-rtm.tar.gz" \
+            | sha256sum -c -
+
+          ############################################
+          # 11.3 Fix SoftEtherVPN 4.44 Host compilation
+          # OpenWrt 24.10 / Ubuntu 26.04.1 x86_64
+          ############################################
+          echo "Apply SoftEtherVPN 4.44 Host compatibility fix"
+
+          python3 - "$WORKDIR/softethervpn/Makefile" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          path = Path(sys.argv[1])
+          data = path.read_text()
+
+          # Apply only to the tested SoftEtherVPN version.
+          if not re.search(
+              r'^PKG_VERSION:=4\.44-9807$',
+              data,
+              re.MULTILINE
+          ):
+              raise SystemExit(
+                  "Unsupported SoftEtherVPN version"
+              )
+
+          new_block = (
+              'define Host/Compile\n'
+              '\tCC="/usr/bin/gcc -O2 '
+              '-I$(STAGING_DIR_HOSTPKG)/include '
+              '-L$(STAGING_DIR_HOSTPKG)/lib '
+              '-L/usr/lib/x86_64-linux-gnu" \\\n'
+              '\t$(MAKE) $(HOST_MAKE_FLAGS) \\\n'
+              '\t\tsrc/bin/BuiltHamcoreFiles/unix/hamcore.se2\n'
+              'endef'
+          )
+
+          pattern = r'^define Host/Compile\s*\n.*?^endef'
+
+          data, count = re.subn(
+              pattern,
+              lambda match: new_block,
+              data,
               count=1,
               flags=re.MULTILINE | re.DOTALL
           )
