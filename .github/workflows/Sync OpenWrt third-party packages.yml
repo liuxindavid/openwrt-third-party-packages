@@ -147,22 +147,29 @@ jobs:
             --exclude='LICENSE*' \
             "$TMPDIR/helloworld/" "$WORKDIR/"
 
+          
           ############################################
           # 11. SoftEtherVPN 4.44 package recipe
           # Base recipe: OpenWrt packages / openwrt-24.10
           # Source tarball: SoftEther Stable 4.44-9807 RTM
+          # Host tested: Ubuntu 26.04.1 x86_64
           ############################################
           echo "Sync SoftEtherVPN 4.44 package recipe"
+
           git clone --depth=1 --filter=blob:none --sparse \
             --branch openwrt-24.10 \
             https://github.com/openwrt/packages.git \
             "$TMPDIR/openwrt-packages"
+
           cd "$TMPDIR/openwrt-packages"
           git sparse-checkout set net/softethervpn
+
           test -f net/softethervpn/Makefile
           cp -a net/softethervpn "$WORKDIR/softethervpn"
 
-          # Fail closed if upstream changes the recipe layout unexpectedly.
+          ############################################
+          # 11.1 Set SoftEtherVPN 4.44 version
+          ############################################
           python3 - "$WORKDIR/softethervpn/Makefile" <<'PY'
           import pathlib
           import re
@@ -170,6 +177,7 @@ jobs:
 
           path = pathlib.Path(sys.argv[1])
           data = path.read_text()
+
           replacements = {
               'PKG_VERSION': '4.44-9807',
               'PKG_VERREL': 'rtm',
@@ -177,21 +185,126 @@ jobs:
               'PKG_SOURCE_URL': 'https://www.softether-download.com/files/softether/v4.44-9807-rtm-2025.04.16-tree/Source_Code/',
               'PKG_HASH': 'f4fdc5f791ae318c4a70c1bc95b15ee24c264d8f3dc32e626ee9d5382da849e7',
           }
+
           for name, value in replacements.items():
               pattern = rf'(?m)^{re.escape(name)}:=[^\n]*$'
-              data, count = re.subn(pattern, lambda match, n=name, v=value: f'{n}:={v}', data)
+              data, count = re.subn(
+                  pattern,
+                  lambda match, n=name, v=value: f'{n}:={v}',
+                  data
+              )
               if count != 1:
-                  raise SystemExit(f'Unexpected upstream Makefile: {name} occurs {count} times')
+                  raise SystemExit(
+                      f'Unexpected upstream Makefile: {name} occurs {count} times'
+                  )
+
           path.write_text(data)
+          print("SoftEtherVPN version configured: 4.44-9807")
           PY
 
-          # Check the actual stable source archive before publishing the recipe.
+          ############################################
+          # 11.2 Verify official source SHA256
+          ############################################
+          echo "Verify SoftEtherVPN 4.44 source archive"
+
           curl -fL --retry 3 --retry-delay 2 \
             -o "$TMPDIR/softether-src-v4.44-9807-rtm.tar.gz" \
             'https://www.softether-download.com/files/softether/v4.44-9807-rtm-2025.04.16-tree/Source_Code/softether-src-v4.44-9807-rtm.tar.gz'
+
           echo "f4fdc5f791ae318c4a70c1bc95b15ee24c264d8f3dc32e626ee9d5382da849e7  $TMPDIR/softether-src-v4.44-9807-rtm.tar.gz" \
             | sha256sum -c -
 
+          ############################################
+          # 11.3 Fix SoftEtherVPN 4.44 Host compilation
+          # OpenWrt 24.10 / Ubuntu 26.04.1 x86_64
+          ############################################
+          echo "Apply SoftEtherVPN 4.44 Host compatibility fix"
+
+          python3 - "$WORKDIR/softethervpn/Makefile" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          path = Path(sys.argv[1])
+          data = path.read_text()
+
+          # Apply only to the tested SoftEtherVPN version.
+          if not re.search(
+              r'^PKG_VERSION:=4\.44-9807$',
+              data,
+              re.MULTILINE
+          ):
+              raise SystemExit(
+                  "Unsupported SoftEtherVPN version"
+              )
+
+          new_block = (
+              'define Host/Compile\n'
+              '\tCC="/usr/bin/gcc -O2 '
+              '-I$(STAGING_DIR_HOSTPKG)/include '
+              '-L$(STAGING_DIR_HOSTPKG)/lib '
+              '-L/usr/lib/x86_64-linux-gnu" \\\n'
+              '\t$(MAKE) $(HOST_MAKE_FLAGS) \\\n'
+              '\t\tsrc/bin/BuiltHamcoreFiles/unix/hamcore.se2\n'
+              'endef'
+          )
+
+          pattern = r'^define Host/Compile\s*\n.*?^endef'
+
+          data, count = re.subn(
+              pattern,
+              lambda match: new_block,
+              data,
+              count=1,
+              flags=re.MULTILINE | re.DOTALL
+          )
+
+          if count != 1:
+              raise SystemExit(
+                  "Cannot locate Host/Compile block"
+              )
+
+          path.write_text(data)
+
+          print("Host/Compile compatibility fix applied")
+          PY
+
+          ############################################
+          # 11.4 Remove incompatible legacy OpenSSL patch
+          ############################################
+          echo "Remove incompatible OpenSSL legacy patch"
+
+          rm -f \
+            "$WORKDIR/softethervpn/patches/120-openssl-deprecated.patch"
+
+          ############################################
+          # 11.5 Verify final package recipe
+          ############################################
+          echo "===== SoftEtherVPN package version ====="
+
+          grep -E \
+            '^PKG_(VERSION|VERREL|RELEASE|SOURCE_URL|HASH):=' \
+            "$WORKDIR/softethervpn/Makefile"
+
+          echo "===== SoftEtherVPN Host compile block ====="
+
+          sed -n \
+            '/^define Host\/Compile$/,/^endef$/p' \
+            "$WORKDIR/softethervpn/Makefile"
+
+          echo "===== SoftEtherVPN remaining patches ====="
+
+          ls -la "$WORKDIR/softethervpn/patches/"
+
+          if [ -f "$WORKDIR/softethervpn/patches/120-openssl-deprecated.patch" ]; then
+              echo "ERROR: incompatible OpenSSL patch still exists"
+              exit 1
+          fi
+
+          echo "SoftEtherVPN 4.44 package recipe prepared successfully"
+
+          cd "$WORKDIR"
+          
           ############################################
           # Remove embedded Git repositories
           ############################################
